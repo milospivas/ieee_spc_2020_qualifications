@@ -309,8 +309,8 @@ n_normal_abnormal = idx_normal_test(y_test(1:M_test(1)) == abnormal);
 n_abnormal_normal = idx_abnormal_test(y_test(M_test(1)+1:end) == normal);
 n_abnormal_abnormal = idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
 
-n_normal = [n_normal_normal n_normal_abnormal];
-n_abnormal = [n_abnormal_normal n_abnormal_abnormal];
+n_normal = kLast + [n_normal_normal n_normal_abnormal];
+n_abnormal = kLast + [n_abnormal_normal n_abnormal_abnormal];
 
 y_normal = [zeros(M_pred_conf(1,1), 1); ones(M_pred_conf(1,2), 1)];
 y_abnormal = [zeros(M_pred_conf(2,1), 1); ones(M_pred_conf(2,2), 1)];
