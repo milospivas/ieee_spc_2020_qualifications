@@ -166,12 +166,12 @@ kLast = 4;
 X_normal = lookBack(X_normal, kLast);
 X_abnormal = lookBack(X_abnormal, kLast);
 
-X = [X_normal; X_abnormal];
+% X = [X_normal; X_abnormal];
 % Train, CV, Test data split
 
 splitPcg = 70;
-[X_normal_train, X_normal_test] = splitData(X_normal, splitPcg);
-[X_abnormal_train, X_abnormal_test] = splitData(X_abnormal, splitPcg);
+[X_normal_train, X_normal_test, idx_normal_train, idx_normal_test] = splitData(X_normal, splitPcg);
+[X_abnormal_train, X_abnormal_test, idx_abnormal_train, idx_abnormal_test] = splitData(X_abnormal, splitPcg);
 
 X_train = [X_normal_train; X_abnormal_train];
 X_test = [X_normal_test; X_abnormal_test];
@@ -275,23 +275,6 @@ P = posterior(GMM, Z_test);
 [~, y_test] = max(P, [], 2);
 % Visualize predicitons
 
-M_pred = [length(find(y_test == 1)), length(find(y_test == 2))];
-M_test = [length(X_normal_test), length(X_abnormal_test)];
-
-M_pred_conf = [length(find(y_test(1:M_test(1)) == 1)), length(find(y_test(1:M_test(1)) == 2));...
-               length(find(y_test(M_test(1)+1:end) == 1)), length(find(y_test(M_test(1)+1:end) == 2))];
-
-disp(['Num samples normal: ' int2str(M_test(1))])
-disp(['Num samples abnormal: ' int2str(M_test(2))])
-
-disp(['Num predicted normal: ' int2str(M_pred(normal))])
-disp(['Num predicted abnormal: ' int2str(M_pred(abnormal))])
-
-disp(['Num predicted normal from normal set: ' int2str(M_pred_conf(1,normal))])
-disp(['Num predicted abnormal from normal set: ' int2str(M_pred_conf(1,abnormal))])
-disp(['Num predicted normal from abnormal set: ' int2str(M_pred_conf(2,normal))])
-disp(['Num predicted abnormal from abnormal set: ' int2str(M_pred_conf(2,abnormal))])
-
 figure
     gscatter(Z_test(:,1), Z_test(:,2), y_test, 'br', 'o+');
     xlim(0.15*[-1 1])
@@ -300,6 +283,48 @@ figure
     
     legend(['Predicted ' labelName{1}], ['Predicted ' labelName{2}]);
     title(['Data projected on first 2 principal components'])
+% Some statistics
+
+M_pred = [length(find(y_test == normal)), length(find(y_test == abnormal))];
+M_test = [length(X_normal_test), length(X_abnormal_test)];
+
+M_pred_conf = [length(find(y_test(1:M_test(1)) == normal)), length(find(y_test(1:M_test(1)) == abnormal));...
+               length(find(y_test(M_test(1)+1:end) == normal)), length(find(y_test(M_test(1)+1:end) == abnormal))];
+
+disp(['Num samples normal: ' int2str(M_test(1))])
+disp(['Num samples abnormal: ' int2str(M_test(2))])
+
+disp(['Num predicted normal: ' int2str(M_pred(normal))])
+disp(['Num predicted abnormal: ' int2str(M_pred(abnormal))])
+
+disp(['Num predicted normal from normal set: ' int2str(M_pred_conf(1,1))])
+disp(['Num predicted abnormal from normal set: ' int2str(M_pred_conf(1,2))])
+disp(['Num predicted normal from abnormal set: ' int2str(M_pred_conf(2,1))])
+disp(['Num predicted abnormal from abnormal set: ' int2str(M_pred_conf(2,2))])
+
+% Time visualization
+
+n_normal_normal = idx_normal_test(y_test(1:M_test(1)) == normal);
+n_normal_abnormal = idx_normal_test(y_test(1:M_test(1)) == abnormal);
+n_abnormal_normal = idx_abnormal_test(y_test(M_test(1)+1:end) == normal);
+n_abnormal_abnormal = idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
+
+n_normal = [n_normal_normal n_normal_abnormal];
+n_abnormal = [n_abnormal_normal n_abnormal_abnormal];
+
+y_normal = [zeros(M_pred_conf(1,1), 1); ones(M_pred_conf(1,2), 1)];
+y_abnormal = [zeros(M_pred_conf(2,1), 1); ones(M_pred_conf(2,2), 1)];
+
+figure
+    subplot(1,2,1)
+        stem(n_normal, y_normal);
+        title('Normal test data');
+    
+    subplot(1,2,2)
+        stem(n_abnormal, y_abnormal);
+        title('Abnormal test data');
+    
+    sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
 
 % Saving the model
 
