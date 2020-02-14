@@ -183,7 +183,7 @@ M_abnormal = size(X_abnormal_train, 1);
 % Feature scaling and normalization
 
 mu = mean(X_train);
-sigma = std(X_train);
+% sigma = std(X_train);
 scalingFactor = 1/4 * 10^(-5);
 
 X_train = (X_train - mu)*scalingFactor;
@@ -221,8 +221,12 @@ disp(['BIC: ' num2str(GMM.BIC)]);
 disp(['AIC: ' num2str(GMM.AIC)]);
 
 if trace(GMM.Sigma(:,:,1)) < trace(GMM.Sigma(:,:,2))
+    normal = 1;
+    abnormal = 2;
     labelName = {'normal'; 'abnormal'};    
 else
+    normal = 2;
+    abnormal = 1;
     labelName = {'abnormal'; 'normal'};
 end
 % GMM Visualization
@@ -259,9 +263,8 @@ figure
         view(45, 15);
         axis fill
         hold off
-    end
-%% 
-% % Results on test set
+    end        
+% Results on test set
 % Feature normalization and reduction
 
 X_test = (X_test - mu) * scalingFactor;
@@ -281,15 +284,14 @@ M_pred_conf = [length(find(y_test(1:M_test(1)) == 1)), length(find(y_test(1:M_te
 disp(['Num samples normal: ' int2str(M_test(1))])
 disp(['Num samples abnormal: ' int2str(M_test(2))])
 
-disp(['Num predicted ' labelName{1} ': ' int2str(M_pred(1))])
-disp(['Num predicted ' labelName{2} ': ' int2str(M_pred(2))])
+disp(['Num predicted normal: ' int2str(M_pred(normal))])
+disp(['Num predicted abnormal: ' int2str(M_pred(abnormal))])
 
-disp(['Num predicted ' labelName{1} ' from normal set: ' int2str(M_pred_conf(1,1))])
-disp(['Num predicted ' labelName{2} ' from normal set: ' int2str(M_pred_conf(1, 2))])
-disp(['Num predicted ' labelName{1} ' from abnormal set: ' int2str(M_pred_conf(2, 1))])
-disp(['Num predicted ' labelName{2} ' from abnormal set: ' int2str(M_pred_conf(2, 2))])
+disp(['Num predicted normal from normal set: ' int2str(M_pred_conf(1,normal))])
+disp(['Num predicted abnormal from normal set: ' int2str(M_pred_conf(1,abnormal))])
+disp(['Num predicted normal from abnormal set: ' int2str(M_pred_conf(2,normal))])
+disp(['Num predicted abnormal from abnormal set: ' int2str(M_pred_conf(2,abnormal))])
 
-disp(['Predicted ' labelName{1} ' from normal test set '])
 figure
     gscatter(Z_test(:,1), Z_test(:,2), y_test, 'br', 'o+');
     xlim(0.15*[-1 1])
