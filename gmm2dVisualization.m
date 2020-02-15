@@ -1,6 +1,8 @@
-function gmm2dVisualization(GMM, Z, y, numClasses, labelName, Lambda)
+function gmm2dVisualization(GMM, Z, y, labelName, Lambda)
 %GMMVISUALIZATION 2D visualization of GMM with two classes
 %   Detailed explanation goes here
+    numClasses = GMM.NumComponents;
+
     pdfs = cell(numClasses, 1);
     for i = 1 : numClasses
         pdfs{i} = @(x1,x2) reshape(mvnpdf([x1(:) x2(:)], GMM.mu(i, 1:2), GMM.Sigma(1:2,1:2,i)), size(x1));    
