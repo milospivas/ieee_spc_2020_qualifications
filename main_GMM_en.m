@@ -162,11 +162,12 @@ X_abnormal = lookBack(X_abnormal, kLast);
 % X = [X_normal; X_abnormal];
 %% Train, CV, Test data split
 
-splitPcg = 70;
-[X_normal_train, X_normal_test, idx_normal_train, idx_normal_test] = splitData(X_normal, splitPcg);
-[X_abnormal_train, X_abnormal_test, idx_abnormal_train, idx_abnormal_test] = splitData(X_abnormal, splitPcg);
+splitPcg = [50, 25];
+[X_normal_train, X_normal_cv, X_normal_test, idx_normal_train, idx_normal_cv, idx_normal_test] = splitData(X_normal, splitPcg);
+[X_abnormal_train, X_abnormal_cv, X_abnormal_test, idx_abnormal_train, idx_abnormal_cv, idx_abnormal_test] = splitData(X_abnormal, splitPcg);
 
 X_train = [X_normal_train; X_abnormal_train];
+X_cv = [X_normal_cv; X_abnormal_cv];
 X_test = [X_normal_test; X_abnormal_test];
 
 M = size(X_train, 1);
@@ -209,57 +210,33 @@ for Lambda = [0.0 : 0.005 :0.2]
     disp(['Lambda = ' num2str(Lambda)]);
     [GMM, labelName, normal, abnormal, middle] = gmmFit(Z, numClasses, Lambda, Iterations);
     
-    %% Results on test set
+    %% Results on CV set
     %% Feature normalization and reduction
-    Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
+    Z_cv = ((X_cv - mu)*scalingFactor - mu_pca) * U;
     
     %% Predict
-    P_test = posterior(GMM, Z_test);
-    [~, y_test] = max(P_test, [], 2);
-    
-       
-    %% Mahalanobis distance
-    D = mahal(GMM, Z_test);
-    
-    % distance from normal gaussian minus others (in case of more classes)
-    D_test = D(:, normal) - sum(D(:, (1:numClasses) ~= normal), 2);
-    
-%     D_test = P_test(:, normal) - sum(P_test(:, (1:numClasses) ~= normal), 2);
-%     D_test = abs(D_test);
-    
-%     D_test = zeros(length(y_test), 1);        
-%     for i = 1 : numClasses
-%         D_test(y_test == i) = D(y_test == i, i) - sum(D(y_test == i, (1:numClasses) ~= i), 2);
-% %         D_test(y_test == i) = P_test(y_test == i, i) - sum(P_test(y_test == i, (1:numClasses) ~= i), 2);
-%     end
-    
-%     D_test = abs(D_test);
+    P_cv = posterior(GMM, Z_cv);
+    [~, y_cv] = max(P_cv, [], 2);
+           
+    % data for silhouette analysis
+    D_cv = silhouetteData(GMM, Z_cv, normal);
     
     %% Silhouette analysis
-    s = silhouette(D_test, y_test);
+    s = silhouette(D_cv, y_cv);
     
+    % silhouette evaluation
     w_normal = 2.5;
     thresh = 0; %-0.1;
-    if (nnz(isnan(s)) == 0) && (nnz(y_test == normal) > 0)  && (nnz(y_test ~= normal) > 0)
-        eval = (nnz(y_test ~= normal) - nnz(s(y_test ~= normal) < thresh))/nnz(y_test ~= normal)*w_normal + ...
-               (nnz(y_test == normal) - nnz(s(y_test == normal) < thresh))/nnz(y_test == normal)*(100 - w_normal);
-%         eval = 0;
-%         for i = 1 : numClasses
-%             eval = eval + (nnz(y_test == i) - nnz(s(y_test == i) < 0))/nnz(y_test == i);
-%         end
-%         eval = (length(y_test) - nnz(s < 0.2))/length(y_test)*100;
-    else
-        eval = 0;
-    end
+    eval = silhouetteEval(s, y_cv, normal, w_normal, thresh);
     
     disp(['Evaluation (bigger is better): ' num2str(eval)]);
     
     if eval > max_eval
         max_eval = eval;
         GMM_opt = GMM;
-        P_opt = P_test;
-        D_opt = D_test;
-        y_opt = y_test;
+%         P_opt = P_cv;
+%         D_opt = D_cv;
+%         y_opt = y_cv;
         Lambda_opt = Lambda;
         normal_opt = normal;
         abnormal_opt = abnormal;
@@ -269,22 +246,42 @@ for Lambda = [0.0 : 0.005 :0.2]
 end
 
 GMM = GMM_opt;
-P_test = P_opt;
-D_test = D_opt;
-y_test = y_opt;
+% P_cv = P_opt;
+% D_cv = D_opt;
+% y_cv = y_opt;
 Lambda = Lambda_opt;
 normal = normal_opt;
 abnormal = abnormal_opt;
 labelName = labelName_opt;
 
 disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
+%% Evaluate on test set
+
+% feature maping and dim. reduction
+Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
+
+% prediction
+P_test = posterior(GMM, Z_test);
+[~, y_test] = max(P_test, [], 2);
+
+% data for silhouette analysis
+D_test = silhouetteData(GMM, Z_test, normal);
+
+%% Silhouette analysis
+s = silhouette(D_test, y_test);
+
+% silhouette evaluation
+eval = silhouetteEval(s, y_test, normal, w_normal, thresh);
+disp(['Evaluation on test set (bigger is better): ' num2str(eval)])
 %% Visualize predicitons
 
-gmm2dVisualization(GMM, Z_test, y_test, numClasses, labelName, Lambda);
+gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
 %%
 % Silhouettes
 [s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda);    
 %% Some statistics
+
+disp(['For Lambda:' num2str(Lambda)]);
 
 M_pred = [length(find(y_test == normal)), length(find(y_test == abnormal))];
 M_test = [length(X_normal_test), length(X_abnormal_test)];
