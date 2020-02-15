@@ -1,31 +1,28 @@
 %% IEEE Signal Processing Cup 2020 - Qualifications
-% % 
-% Team 2 : GMM
+% % Team 2 : GMM
 %% Report
-% Defining the problem
-% 5 normal and 5 abnormal recordings are given as ROS .bag files.
+% Defining the problem 5 normal and 5 abnormal recordings are given as ROS .bag 
+% files.
 % 
 % The task is to implement models which will give a prediction wheter each sample 
 % in the recording is normal/abnormal based on measurements from .bag files.
 % 
-% Visualization:
-% Images were extracted from "/pylon_camera_node/image_raw" topic, rotated 180 
-% degrees and saved as video files with 4fps framerate.
+% Visualization: Images were extracted from "/pylon_camera_node/image_raw" topic, 
+% rotated 180 degrees and saved as video files with 4fps framerate.
 % 
 % From extracted videos we see that the recordings come from some UAV, where 
 % the normal recordings were made during stable flight without fast movement while 
 % abnormal recordings were made during very unstable flight with sudden movements.
 % 
-% % Preanalysis
-% Every recording has around hundred mesurements but we don't have class labels.
+% % Preanalysis Every recording has around hundred mesurements but we don't 
+% have class labels.
 % 
 % => We can't use classic classification.
 % 
 % => Possible solution: Gaussian Mixture Model
 % 
-% % Measurement analysis
-% Based on extracted videos, the following measurements were chosen as relevant 
-% for analysis:
+% % Measurement analysis Based on extracted videos, the following measurements 
+% were chosen as relevant for analysis:
 % 
 % "/mavros/global_position/local"
 % 
@@ -55,10 +52,7 @@
 % First three quantities are 3D, the fourth one is scalar, so the feature vectore 
 % is 10D.
 % 
-% % Feature engineering
-% TODO write
-% Gaussian Mixture Model
-% TODO write
+% % Feature engineering TODO write Gaussian Mixture Model TODO write
 % 
 % % Overview of functions:
 
@@ -82,8 +76,7 @@
 %     plotData           - Plots chosen columns from a pair of tables as signals in time and their histograms.
 %                         Used for measurement analysis.
 %% 
-% %% Implementation    
-% Work directories for normal and abnormal data.
+% %% Implementation Work directories for normal and abnormal data.
 
 clear;
 
@@ -145,29 +138,29 @@ plotData(jointTableNormalAddDer, jointTableAbnormalAddDer, "MagneticFieldDerivat
 plotData(jointTableNormalAddDer, jointTableAbnormalAddDer, "compassHdgDerivative", "", figure(19), figure(20));
 % just as anticipated, abnormals have much higher variance
 %% Modeling
-% Extracting data from bags
+%% Extracting data from bags
 
 % tableNormal = featureTable(bagsNormal);
 % tableAbnormal = featureTable(bagsAbnormal);
 % save tables.mat tableNormal tableAbnormal -mat
 
-clear; close all;
+clear; close all; clc;
 load('tables.mat')
 
 % tableNormal = [tableNormal, table(zeros(height(tableNormal),1), 'VariableNames', "y")];
 % tableAbnormal = [tableAbnormal, table(ones(height(tableAbnormal),1), 'VariableNames', "y")];
-% Feature generation
+%% Feature generation
 
 X_normal = tableNormal{:,:};
 X_abnormal = tableAbnormal{:,:};
 
 % add lookBack
-kLast = 4;
+kLast = 2;
 X_normal = lookBack(X_normal, kLast);
 X_abnormal = lookBack(X_abnormal, kLast);
 
 % X = [X_normal; X_abnormal];
-% Train, CV, Test data split
+%% Train, CV, Test data split
 
 splitPcg = 70;
 [X_normal_train, X_normal_test, idx_normal_train, idx_normal_test] = splitData(X_normal, splitPcg);
@@ -179,18 +172,16 @@ X_test = [X_normal_test; X_abnormal_test];
 M = size(X_train, 1);
 M_normal = size(X_normal_train, 1);
 M_abnormal = size(X_abnormal_train, 1);
+%% Feature mapping (scaling and normalization)
 
-% Feature scaling and normalization
+mu = 0; %mean(X_train);
+% Sigma = cov(X_train);
+scalingFactor = 10^(-5);
 
-mu = mean(X_train);
-% sigma = std(X_train);
-scalingFactor = 1/4 * 10^(-5);
+X_train_mapped = (X_train - mu)* scalingFactor;
+%% PCA
 
-X_train = (X_train - mu)*scalingFactor;
-
-% PCA
-
-[coeff,score,latent,tsquared,explained,mu] = pca(X_train);
+[coeff,score,latent,tsquared,explained,mu_pca] = pca(X_train_mapped);
 
 varianceRetained = 99;
 numComponents = find(cumsum(explained) >= varianceRetained, 1);
@@ -200,90 +191,100 @@ disp(['Number of principal components with ' int2str(varianceRetained) '% varian
 
 U = coeff(:,1:numComponents);
 
-Z = X_train * U;
-% Training data vizualization
+Z = (X_train_mapped - mu_pca)* U;
+%% Training data vizualization
 
 y = [zeros(M_normal,1); ones(M_abnormal,1)];
 figure
     gscatter(Z(:,1), Z(:,2), y, 'br', 'o+');
     legend('Normal recordings','Recordings with abnormalities');
     title(['Data projected on first 2 principal components, ' int2str(sum(explained(1:2))) '% var. ret.'])
-    xlim(0.2*[-1 1])
-    ylim(0.2*[-1 1])
     axis square
-% Gaussian Mixture Model
+%% Gaussian Mixture Model
 
 numClasses = 2;
-GMM = fitgmdist(Z, numClasses);
-
-% these can be used for model evaluation
-disp(['BIC: ' num2str(GMM.BIC)]);
-disp(['AIC: ' num2str(GMM.AIC)]);
-
-if trace(GMM.Sigma(:,:,1)) < trace(GMM.Sigma(:,:,2))
-    normal = 1;
-    abnormal = 2;
-    labelName = {'normal'; 'abnormal'};    
-else
-    normal = 2;
-    abnormal = 1;
-    labelName = {'abnormal'; 'normal'};
-end
-% GMM Visualization
-
-y = [zeros(M_normal,1); ones(M_abnormal,1)];
-pdfs = {@(x1,x2) reshape(mvnpdf([x1(:) x2(:)], GMM.mu(1, 1:2), GMM.Sigma(1:2,1:2,1)), size(x1));...
-        @(x1,x2) reshape(mvnpdf([x1(:) x2(:)], GMM.mu(2, 1:2), GMM.Sigma(1:2,1:2,2)), size(x1))};
-
-figure
-    for i = 1 : 2
-        subplot(1,2, i);
-        gscatter(Z(:,1), Z(:,2), y, 'br', 'o+');
-        g = gca;
-        hold on
-        fcontour(pdfs(i),[g.XLim g.YLim])
-        
-        xlim(GMM.mu(i,1) + 3*sqrt(GMM.Sigma(1,1, i))*[-1 1])
-        ylim(GMM.mu(i,2) + 3*sqrt(GMM.Sigma(2,2, i))*[-1 1])
-        
-        title(['Fitted Gaussian ' labelName{i}])
-        legend('Actual normal','Actual abnormal')
-        hold off
-    end
-   
-figure
-    for i = 1 : 2
-        subplot(1,2, i);
-        gscatter(Z(:,1), Z(:,2), y, 'br', 'o+');
-        g = gca;
-        hold on
-        fsurf(pdfs(i),[g.XLim g.YLim])
-        title(['Fitted Gaussian ' labelName{i}])
-        legend('Actual normal','Actual abnormal')
-        view(45, 15);
-        axis fill
-        hold off
-    end        
-% Results on test set
-% Feature normalization and reduction
-
-X_test = (X_test - mu) * scalingFactor;
-Z_test = X_test * U;
-% Predict
-
-P = posterior(GMM, Z_test);
-[~, y_test] = max(P, [], 2);
-% Visualize predicitons
-
-figure
-    gscatter(Z_test(:,1), Z_test(:,2), y_test, 'br', 'o+');
-    xlim(0.15*[-1 1])
-    ylim(0.15*[-1 1])
-    axis square
+max_eval = 0;
+Iterations = 1000;
+for Lambda = [0.0 : 0.005 :0.2]
+    disp(['Lambda = ' num2str(Lambda)]);
+    [GMM, labelName, normal, abnormal, middle] = gmmFit(Z, numClasses, Lambda, Iterations);
     
-    legend(['Predicted ' labelName{1}], ['Predicted ' labelName{2}]);
-    title(['Data projected on first 2 principal components'])
-% Some statistics
+    %% Results on test set
+    %% Feature normalization and reduction
+    Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
+    
+    %% Predict
+    P_test = posterior(GMM, Z_test);
+    [~, y_test] = max(P_test, [], 2);
+    
+       
+    %% Mahalanobis distance
+    D = mahal(GMM, Z_test);
+    
+    % distance from normal gaussian minus others (in case of more classes)
+    D_test = D(:, normal) - sum(D(:, (1:numClasses) ~= normal), 2);
+    
+%     D_test = P_test(:, normal) - sum(P_test(:, (1:numClasses) ~= normal), 2);
+%     D_test = abs(D_test);
+    
+%     D_test = zeros(length(y_test), 1);        
+%     for i = 1 : numClasses
+%         D_test(y_test == i) = D(y_test == i, i) - sum(D(y_test == i, (1:numClasses) ~= i), 2);
+% %         D_test(y_test == i) = P_test(y_test == i, i) - sum(P_test(y_test == i, (1:numClasses) ~= i), 2);
+%     end
+    
+%     D_test = abs(D_test);
+    
+    %% Silhouette analysis
+    s = silhouette(D_test, y_test);
+    
+    w_normal = 2.5;
+    thresh = 0; %-0.1;
+    if (nnz(isnan(s)) == 0) && (nnz(y_test == normal) > 0)  && (nnz(y_test ~= normal) > 0)
+        eval = (nnz(y_test ~= normal) - nnz(s(y_test ~= normal) < thresh))/nnz(y_test ~= normal)*w_normal + ...
+               (nnz(y_test == normal) - nnz(s(y_test == normal) < thresh))/nnz(y_test == normal)*(100 - w_normal);
+%         eval = 0;
+%         for i = 1 : numClasses
+%             eval = eval + (nnz(y_test == i) - nnz(s(y_test == i) < 0))/nnz(y_test == i);
+%         end
+%         eval = (length(y_test) - nnz(s < 0.2))/length(y_test)*100;
+    else
+        eval = 0;
+    end
+    
+    disp(['Evaluation (bigger is better): ' num2str(eval)]);
+    
+    if eval > max_eval
+        max_eval = eval;
+        GMM_opt = GMM;
+        P_opt = P_test;
+        D_opt = D_test;
+        y_opt = y_test;
+        Lambda_opt = Lambda;
+        normal_opt = normal;
+        abnormal_opt = abnormal;
+        labelName_opt = labelName;
+    end
+    
+end
+
+GMM = GMM_opt;
+P_test = P_opt;
+D_test = D_opt;
+y_test = y_opt;
+Lambda = Lambda_opt;
+normal = normal_opt;
+abnormal = abnormal_opt;
+labelName = labelName_opt;
+
+disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
+%% Visualize predicitons
+
+gmm2dVisualization(GMM, Z_test, y_test, numClasses, labelName, Lambda);
+%%
+% Silhouettes
+[s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda);    
+%% Some statistics
 
 M_pred = [length(find(y_test == normal)), length(find(y_test == abnormal))];
 M_test = [length(X_normal_test), length(X_abnormal_test)];
@@ -301,8 +302,7 @@ disp(['Num predicted normal from normal set: ' int2str(M_pred_conf(1,1))])
 disp(['Num predicted abnormal from normal set: ' int2str(M_pred_conf(1,2))])
 disp(['Num predicted normal from abnormal set: ' int2str(M_pred_conf(2,1))])
 disp(['Num predicted abnormal from abnormal set: ' int2str(M_pred_conf(2,2))])
-
-% Time visualization
+%% Time visualization
 
 n_normal_normal = idx_normal_test(y_test(1:M_test(1)) == normal);
 n_normal_abnormal = idx_normal_test(y_test(1:M_test(1)) == abnormal);
@@ -325,8 +325,7 @@ figure
         title('Abnormal test data');
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
+%% Saving the model
 
-% Saving the model
-
-save GMM.mat GMM -mat
+save GMM.mat GMM mu scalingFactor mu_pca U -mat
 %
