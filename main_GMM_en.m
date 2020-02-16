@@ -83,76 +83,24 @@ clear;
 % change if needed
 workDirNormal = '03_normal';
 workDirAbnormal = '04_abnormal';
-%% The structure of data
+%% Loading the data
 % Loading .bag files, selecting relevant measurements and converting into tables.
 
 bagsNormal = files2bag(workDirNormal);
 bagsAbnormal = files2bag(workDirAbnormal);
-% Data analysis on joint data from all recordings and choosing predictor features.
-
-jointTableNormal = bagCell2table(bagsNormal);
-jointTableAbnormal = bagCell2table(bagsAbnormal);
-
-% close all
-Vector3Suffixes = ["X" "Y" "Z"];
-QuaternionSuffixes = ["X" "Y" "Z" "W"];
-
-plotData(jointTableNormal, jointTableAbnormal, "odomPosition", Vector3Suffixes, figure(1), figure(2));
-% doesn't look useful
-
-plotData(jointTableNormal, jointTableAbnormal, "odomOrientation", QuaternionSuffixes, figure(3), figure(4));
-% high frequency oscillations on the abnormal data
-% first derivative would be a very useful feature
-% angular velocity? 
-
-plotData(jointTableNormal, jointTableAbnormal, "odomTwistLinear", Vector3Suffixes, figure(5), figure(6));
-% looks like first derivative would be very useful
-% linear acceleration?
-
-plotData(jointTableNormal, jointTableAbnormal, "IMUOrientation", QuaternionSuffixes, figure(7), figure(8));
-% this looks identical to odomOrientation
-
-plotData(jointTableNormal, jointTableAbnormal, "IMUAngularVelocity", Vector3Suffixes, figure(9), figure(10));
-% just as anticipated, abnormals have much higher variance
-
-plotData(jointTableNormal, jointTableAbnormal, "IMULinearAcceleration", Vector3Suffixes, figure(11), figure(12));
-% just as anticipated, abnormals have much higher variance
-
-plotData(jointTableNormal, jointTableAbnormal, "MagneticField", Vector3Suffixes, figure(13), figure(14));
-% high frequency oscillations on the abnormal data
-% first derivative would be a useful feature
-
-plotData(jointTableNormal, jointTableAbnormal, "compassHdg", "", figure(15), figure(16));
-% high frequency oscillations on the abnormal data
-% first derivative would be a useful feature
-
-jointTableNormalAddDer = addDerivative(jointTableNormal, "MagneticField", Vector3Suffixes);
-jointTableAbnormalAddDer = addDerivative(jointTableAbnormal, "MagneticField", Vector3Suffixes);
-
-jointTableNormalAddDer = addDerivative(jointTableNormalAddDer, "compassHdg");
-jointTableAbnormalAddDer = addDerivative(jointTableAbnormalAddDer, "compassHdg");
-
-plotData(jointTableNormalAddDer, jointTableAbnormalAddDer, "MagneticFieldDerivative", Vector3Suffixes, figure(17), figure(18));
-% just as anticipated, abnormals have much higher variance
-
-plotData(jointTableNormalAddDer, jointTableAbnormalAddDer, "compassHdgDerivative", "", figure(19), figure(20));
-% just as anticipated, abnormals have much higher variance
+%%
+[frameIdxNormal, TimeNormal, tableNormal] = mapFrames(bagsNormal);
+[frameIdxAbnormal, TimeAbnormal, tableAbnormal] = mapFrames(bagsAbnormal);
+%%
+% Adding derivatives of some values?
 %% Modeling
-%% Extracting data from bags
-
-% tableNormal = featureTable(bagsNormal);
-% tableAbnormal = featureTable(bagsAbnormal);
-% save tables.mat tableNormal tableAbnormal -mat
 
 clear; close all; clc;
 load('tables.mat')
-
-% tableNormal = [tableNormal, table(zeros(height(tableNormal),1), 'VariableNames', "y")];
-% tableAbnormal = [tableAbnormal, table(ones(height(tableAbnormal),1), 'VariableNames', "y")];
 %% Feature generation
 
-X_normal = tableNormal{:,:};
-X_abnormal = tableAbnormal{:,:};
+% X_normal = tableNormal{:,:};
+% X_abnormal = tableAbnormal{:,:};
 
 % add lookBack
 kLast = 2;
@@ -309,16 +257,19 @@ n_abnormal_abnormal = idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
 n_normal = kLast + [n_normal_normal n_normal_abnormal];
 n_abnormal = kLast + [n_abnormal_normal n_abnormal_abnormal];
 
+t_normal = TimeNormal(n_normal);
+t_abnormal = TimeAbnormal(n_abnormal);
+
 y_normal = [zeros(M_pred_conf(1,1), 1); ones(M_pred_conf(1,2), 1)];
 y_abnormal = [zeros(M_pred_conf(2,1), 1); ones(M_pred_conf(2,2), 1)];
 
 figure
     subplot(1,2,1)
-        stem(n_normal, y_normal);
+        stem(t_normal, y_normal);
         title('Normal test data');
     
     subplot(1,2,2)
-        stem(n_abnormal, y_abnormal);
+        stem(t_abnormal, y_abnormal);
         title('Abnormal test data');
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
