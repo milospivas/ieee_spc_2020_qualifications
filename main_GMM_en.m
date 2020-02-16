@@ -99,8 +99,8 @@ clear; close all; clc;
 load('tables.mat')
 %% Feature generation
 
-% X_normal = tableNormal{:,:};
-% X_abnormal = tableAbnormal{:,:};
+X_normal = tableNormal{:,:};
+X_abnormal = tableAbnormal{:,:};
 
 % add lookBack
 kLast = 2;
