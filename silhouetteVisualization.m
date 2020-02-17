@@ -1,6 +1,7 @@
 function [s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda)
 %SILHOUETTEVISUALIZATION Visualize silhouette data and draw silhouettes.
-%   Detailed explanation goes here
+%   Draws a histogram of input data for silhouette analysis.
+%   Draws the silhouettes.
     % Data for silhouette analysis histogram
     figure
         hold on

@@ -1,6 +1,6 @@
 function [Data] = silhouetteData(GMM, Z, normal)
 %SILHOUETTEDATA Calculates data to be used for silhouette analysis
-%   Detailed explanation goes here
+%   Maps the data points using Mahalanobis distance.
     numClasses = GMM.NumComponents;
     %% Mahalanobis distance
     D = mahal(GMM, Z);

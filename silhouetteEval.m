@@ -1,5 +1,5 @@
 function [eval] = silhouetteEval(s, y, normal, w_normal, thresh)
-%SILHOUETTEEVAL Evaluate the silhouettes.
+%SILHOUETTEEVAL Evaluate the silhouettes for choosing best model.
 %   Detailed explanation goes here
     if (nnz(isnan(s)) == 0) && (nnz(y == normal) > 0)  && (nnz(y ~= normal) > 0)
         eval = mean(s(y ~= normal))*(100 - w_normal)/100 + ...

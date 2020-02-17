@@ -1,28 +1,27 @@
 %% IEEE Signal Processing Cup 2020 - Qualifications
 % % Team 2 : GMM
 %% Report
-% Defining the problem 5 normal and 5 abnormal recordings are given as ROS .bag 
-% files.
+% Defining the problem
+% 5 normal and 5 abnormal recordings are given as ROS .bag files.
 % 
 % The task is to implement models which will give a prediction wheter each sample 
 % in the recording is normal/abnormal based on measurements from .bag files.
-% 
-% Visualization: Images were extracted from "/pylon_camera_node/image_raw" topic, 
-% rotated 180 degrees and saved as video files with 4fps framerate.
+% Visualization:
+% Images were extracted from "/pylon_camera_node/image_raw" topic, rotated 180 
+% degrees and saved as video files with 4fps framerate.
 % 
 % From extracted videos we see that the recordings come from some UAV, where 
 % the normal recordings were made during stable flight without fast movement while 
 % abnormal recordings were made during very unstable flight with sudden movements.
-% 
-% % Preanalysis Every recording has around hundred mesurements but we don't 
-% have class labels.
+% Preanalysis
+% Every recording has around hundred mesurements but we don't have class labels.
 % 
 % => We can't use classic classification.
 % 
 % => Possible solution: Gaussian Mixture Model
-% 
-% % Measurement analysis Based on extracted videos, the following measurements 
-% were chosen as relevant for analysis:
+% Measurement analysis
+% Based on extracted videos, the following measurements were chosen as relevant 
+% for analysis:
 % 
 % "/mavros/global_position/local"
 % 
@@ -42,39 +41,63 @@
 % Physical quantities that satisfy the above description are orientation, linear 
 % velocity, magnetic field and compass heading.
 % 
+% Compass heading was discarded because of correlation with magnetic field.
+% 
 % Their derivatives are angular velocity, linear acceleration (already available 
-% from IMU), and derivatives of magnetic field and compass heading (which can 
-% be calculated from measurements), labeled as:
+% from IMU), and derivative of magnetic field.
 % 
-% "IMUAngularVelocity", "IMULinearAcceleration", "MagneticFieldDerivative", 
-% "compassHdgDerivative".
+% All values are 3D, so the feature vector is 9D.
 % 
-% First three quantities are 3D, the fourth one is scalar, so the feature vectore 
-% is 10D.
+% Feature engineering
+% We added a "lookBack" - adds k last samples to each sample, allowing the ML 
+% algorithm to "look back" in time.
 % 
-% % Feature engineering TODO write Gaussian Mixture Model TODO write
+% Gaussian Mixture Model
+% Implemented GMM with 2 classes.
 % 
-% % Overview of functions:
+% A sample is classified as abnormal if its posterior probability of abnormal 
+% GMM component is larger from the normal one.
+% 
+% Used regularization, and selected the best regularization parameter on CV 
+% set, via hold-out cross-validation.
+% 
+% Models are evaluated via silhouette analysis.
+% 
+% Silhouette analysis
+% Since the GMM components are overlapping and concentric, evaluating silhouettes 
+% on raw data would produce nonsensical results.
+% 
+% The data is first mapped to a distance metric:
+% 
+% Mahalanobis distance from the normal GMM components minus the distance from 
+% abnromal component.
+% 
+% That creates a nice separation between normal and abnormal samples.
+% 
+% % Overview of files:
 
 %     addDerivative      - calculates derivatives of selected columns of the table and adds the derivative columns.
-%     bag2table          - Extracts '/mavros/imu/data', '/mavros/imu/mag', '/mavros/global_position/local'
-%                           and '/mavros/global_position/compass_hdg' Topics from ROS .bag file and turns the data into a table.
-%     bag2video          - Extracts images from ROS .bag file and saves the stream as video with given parameters.
-%     bagCell2table      - Applies bag2table() on bag objects from given cell array and joins the results in one table.
-%     bags2video         - Applies bag2video on all bag files from a given directory, returns a cell array of video output objects.
-%     compassCell2table  - Converts a cell array of ROS bag 'std_msgs/Float64' type message into a table.
+%     extractImages      - Extracts images from a bag object
 %     files2bag          - Loads all .bag files from given directory into a cell array of bag objects.
-%     featureTable       - Data extraction. Applies bag2table() on bag objects from a given cell array,
-%                         adds derivatives of magnetic field and compass heading columns, and extracts relevant columns.
-%     imu2table          - Converts a ROS bag 'sensor_msgs/Imu' type message into a table.
-%     imuCell2table      - Applies imu2table() on elements of a cell array of 'sensor_msgs/Imu' type messages and joins them into a table.
-%     mag2table          - Converts ROS bag 'sensor_msgs/MagneticField' type messages into a table.
-%     magCell2table      - Applies mag2table() on elements of a cell array of 'sensor_msgs/MagneticField' type messages and joins them into a table.
+%     gmm2dVisualisation - 2D visualization of a GMM. Draws a contour plot and a surf plot, for every GMM component.
+%     gmmFit             - Fits GMM to data. Computes Gaussian mixture model on data Z with given
+%                           number of classes and regularization value Lambda.
+%     lookBack           - For each row in the input matrix, append k last rows to the right.
+%     mapFrames          - Matches IMU measurements with corresponding frames.
+%                           Sorts IMU timestamps and measurements into table assigning each measurment
+%                           set a serial number of the frame that first comes after
+%     silhouetteData     - Calculates data to be used for silhouette analysis
+%                           Maps the data points using Mahalanobis distance.
+%     silhouetteEval     - Evaluate the silhouettes for choosing best model.
+%     silhouetteVisualization - Visualize silhouette data and draw silhouettes.
+%                           Draws a histogram of input data for silhouette analysis.
+%                           Draws the silhouettes.
+%     splitData          - Split the given data into training, CV and test sets using given percent values for split.
+
+%     tables.mat         - saved data, extracted from the bag files
+%     GMM.mat            - saved trained model with parameters for data preprocessing
+
 %     main_GMM_en            - Main program.
-%     odom2table         - Converts ROS bag 'nav_msgs/Odometry' type messages into a table.
-%     odomCell2table     - Applies odom2table() on elements of a cell array of 'nav_msgs/Odometry' type messages and joins them into a table.
-%     plotData           - Plots chosen columns from a pair of tables as signals in time and their histograms.
-%                         Used for measurement analysis.
 %% 
 % %% Implementation Work directories for normal and abnormal data.
 
@@ -95,7 +118,6 @@ bagsAbnormal = files2bag(workDirAbnormal);
 save temp.mat TNormal TAbnormal -mat
 %%
 load temp.mat
-%%
 % Adding derivatives of some values?
 tableNormalMagDer = addDerivative(TNormal, 'Mag', {'X', 'Y', 'Z'});
 tableAbnormalMagDer = addDerivative(TAbnormal, 'Mag', {'X', 'Y', 'Z'});

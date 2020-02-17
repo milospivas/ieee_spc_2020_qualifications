@@ -1,5 +1,5 @@
 function [X_train, X_cv, X_test, idx_train, idx_cv, idx_test] = splitData(X, pct)
-%SPLITDATA Summary of this function goes here
+%SPLITDATA Split the given data into training, CV and test sets using given percent values for split.
 %   Detailed explanation goes here
     M = size(X,1);
     rng(42); % For reproducibility

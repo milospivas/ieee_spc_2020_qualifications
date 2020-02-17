@@ -1,7 +1,7 @@
 function [frameIdx, Time, Data] = mapFrames(bags)
-%MAPFRAMES Matches IMU measurements with corresponding frame
+%MAPFRAMES Matches IMU measurements with corresponding frames.
 %   Sorts IMU timestamps and measurements into table assigning each measurment
-%   set a serial number of frame that first comes after
+%   set a serial number of the frame that first comes after
 bagSelect = select(bags{1},'Time',[bags{1}.StartTime bags{1}.EndTime],'Topic','/mavros/imu/data');
 imuData = timeseries(bagSelect,'AngularVelocity.X','AngularVelocity.Y','AngularVelocity.Z',...
         'LinearAcceleration.X','LinearAcceleration.Y','LinearAcceleration.Z');

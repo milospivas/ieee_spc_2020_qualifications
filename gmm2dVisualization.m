@@ -1,6 +1,6 @@
 function gmm2dVisualization(GMM, Z, y, labelName, Lambda)
-%GMMVISUALIZATION 2D visualization of GMM with two classes
-%   Detailed explanation goes here
+%GMMVISUALIZATION 2D visualization of a GMM.
+%   Draws a contour plot and a surf plot, for every GMM component.
     numClasses = GMM.NumComponents;
 
     pdfs = cell(numClasses, 1);
