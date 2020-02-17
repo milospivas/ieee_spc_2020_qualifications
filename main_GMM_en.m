@@ -61,18 +61,11 @@
 % Used regularization, and selected the best regularization parameter on CV 
 % set, via hold-out cross-validation.
 % 
-% Models are evaluated via silhouette analysis.
+% Models are evaluated via BIC score, along with set constraints:
 % 
-% Silhouette analysis
-% Since the GMM components are overlapping and concentric, evaluating silhouettes 
-% on raw data would produce nonsensical results.
+% 0 predicted abnromals from normal set,
 % 
-% The data is first mapped to a distance metric:
-% 
-% Mahalanobis distance from the normal GMM components minus the distance from 
-% abnromal component.
-% 
-% That creates a nice separation between normal and abnormal samples.
+% "high" percentage of abnormals from abnormal set.
 % 
 % % Overview of files:
 
@@ -86,12 +79,6 @@
 %     mapFrames          - Matches IMU measurements with corresponding frames.
 %                           Sorts IMU timestamps and measurements into table assigning each measurment
 %                           set a serial number of the frame that first comes after
-%     silhouetteData     - Calculates data to be used for silhouette analysis
-%                           Maps the data points using Mahalanobis distance.
-%     silhouetteEval     - Evaluate the silhouettes for choosing best model.
-%     silhouetteVisualization - Visualize silhouette data and draw silhouettes.
-%                           Draws a histogram of input data for silhouette analysis.
-%                           Draws the silhouettes.
 %     splitData          - Split the given data into training, CV and test sets using given percent values for split.
 
 %     tables.mat         - saved data, extracted from the bag files
@@ -144,7 +131,7 @@ X_abnormal = lookBack(X_abnormal, kLast);
 % X = [X_normal; X_abnormal];
 %% Train, CV, Test data split
 
-splitPcg = [50, 25];
+splitPcg = [70, 0];
 [X_normal_train, X_normal_cv, X_normal_test, idx_normal_train, idx_normal_cv, idx_normal_test] = splitData(X_normal, splitPcg);
 [X_abnormal_train, X_abnormal_cv, X_abnormal_test, idx_abnormal_train, idx_abnormal_cv, idx_abnormal_test] = splitData(X_abnormal, splitPcg);
 
@@ -169,9 +156,6 @@ X_train_mapped = (X_train - mu)* scalingFactor;
 varianceRetained = 99;
 numComponents = find(cumsum(explained) >= varianceRetained, 1);
 
-disp(['Number of principal components with ' int2str(varianceRetained) '% variance retained: '...
-    int2str(numComponents) '/' int2str(size(X_train, 2))]);
-
 U = coeff(:,1:numComponents);
 
 Z = (X_train_mapped - mu_pca)* U;
@@ -185,43 +169,41 @@ figure
     legend('Normal recordings','Recordings with abnormalities');
     title(['Data projected on first 2 principal components, ' int2str(sum(explained(1:2))) '% var. ret.'])
     axis square
+
+disp(['Number of principal components with ' int2str(varianceRetained) '% variance retained: '...
+    int2str(numComponents) '/' int2str(size(X_train, 2))]);
 %% Gaussian Mixture Model
 
 load Z.mat
 numClasses = 2;
-max_eval = 0;
+% max_eval = 0;
+min_AIC = inf;
 Iterations = 1000;
-for Lambda = 0.0001 : 0.005 :0.15
+% Lambdas = 0.001 : 0.0005 :0.02;
+Lambdas = 0.05 : 0.0005 : 0.1;
+
+for Lambda = Lambdas
     disp(['Lambda = ' num2str(Lambda)]);
     [GMM, labelName, normal, abnormal, middle] = gmmFit(Z, numClasses, Lambda, Iterations);
+    eval = GMM.AIC;
+        
+    % prediction
+    P_test = posterior(GMM, Z);
+    [~, y_pred] = max(P_test, [], 2);
     
-    %% Results on CV set
-    %% Feature normalization and reduction
-    Z_cv = ((X_cv - mu)*scalingFactor - mu_pca) * U;
+    n_an = nnz(y_pred(1:M_normal) == abnormal);
+    n_aa = nnz(y_pred(M_normal+1 : end) == abnormal);
+
+    % the percentage of predicted abnormals from normal set should be 0,
+    % the percentage of predicted abnormals from abnormal set should be high,
+    if (n_an/M_normal > 0) || (n_aa/M_abnormal < 0.62)
+        eval = inf;
+    end
+    disp(['Evaluation (smaller is better): ' num2str(eval)])
     
-    %% Predict
-    P_cv = posterior(GMM, Z_cv);
-    [~, y_cv] = max(P_cv, [], 2);
-           
-    % data for silhouette analysis
-    D_cv = silhouetteData(GMM, Z_cv, normal);
-    
-    %% Silhouette analysis
-    s = silhouette(D_cv, y_cv);
-    
-    % silhouette evaluation
-    w_normal = 40;
-    thresh = 0; %-0.1;
-    eval = silhouetteEval(s, y_cv, normal, w_normal, thresh);
-    
-    disp(['Evaluation (bigger is better): ' num2str(eval)]);
-    
-    if eval > max_eval
-        max_eval = eval;
+    if eval < min_AIC
+        min_AIC = eval;
         GMM_opt = GMM;
-        P_opt = P_cv;
-        D_opt = D_cv;
-        y_opt = y_cv;
         Lambda_opt = Lambda;
         normal_opt = normal;
         abnormal_opt = abnormal;
@@ -231,23 +213,13 @@ for Lambda = 0.0001 : 0.005 :0.15
 end
 
 GMM = GMM_opt;
-P_cv = P_opt;
-D_cv = D_opt;
-y_cv = y_opt;
 Lambda = Lambda_opt;
 normal = normal_opt;
 abnormal = abnormal_opt;
 labelName = labelName_opt;
-% Visualization on CV set
-
-% Silhouettes
-[s, h] = silhouetteVisualization(D_cv, y_cv, numClasses, normal, abnormal, labelName, Lambda);
-%%
-norm(GMM.mu(abnormal,:)) - norm(GMM.mu(normal,:))
-gmm2dVisualization(GMM, Z_cv, y_cv, labelName, Lambda);
+disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
 %% Evaluate on test set
 
-disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
 
 % feature maping and dim. reduction
 Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
@@ -255,32 +227,20 @@ Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
 % prediction
 P_test = posterior(GMM, Z_test);
 [~, y_test] = max(P_test, [], 2);
-
-% data for silhouette analysis
-D_test = silhouetteData(GMM, Z_test, normal);
-
-%% Silhouette analysis
-s = silhouette(D_test, y_test);
-
-% silhouette evaluation
-eval = silhouetteEval(s, y_test, normal, w_normal, thresh);
-disp(['Evaluation on test set (bigger is better): ' num2str(eval)])
 %% Visualize predicitons
 
-% Silhouettes
-[s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda);
-%%
-gmm2dVisualization(GMM, Z, y, labelName, Lambda);
-% gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
+% gmm2dVisualization(GMM, Z, y, labelName, Lambda);
+gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
+disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
 %% Some statistics
 
 disp(['For Lambda:' num2str(Lambda)]);
 
-M_pred = [length(find(y_test == normal)), length(find(y_test == abnormal))];
+M_pred = [nnz(y_test == normal), nnz(y_test == abnormal)];
 M_test = [length(X_normal_test), length(X_abnormal_test)];
 
-M_pred_conf = [length(find(y_test(1:M_test(1)) == normal)), length(find(y_test(1:M_test(1)) == abnormal));...
-               length(find(y_test(M_test(1)+1:end) == normal)), length(find(y_test(M_test(1)+1:end) == abnormal))];
+M_pred_conf = [nnz(y_test(1:M_test(1)) == normal), nnz(y_test(1:M_test(1)) == abnormal);...
+               nnz(y_test(M_test(1)+1:end) == normal), nnz(y_test(M_test(1)+1:end) == abnormal)];
 
 disp(['Num samples normal: ' int2str(M_test(1))])
 disp(['Num samples abnormal: ' int2str(M_test(2))])
@@ -294,13 +254,13 @@ disp(['Num predicted normal from abnormal set: ' int2str(M_pred_conf(2,1))])
 disp(['Num predicted abnormal from abnormal set: ' int2str(M_pred_conf(2,2))])
 %% Time visualization
 
-n_normal_normal = idx_normal_test(y_test(1:M_test(1)) == normal);
-n_normal_abnormal = idx_normal_test(y_test(1:M_test(1)) == abnormal);
-n_abnormal_normal = idx_abnormal_test(y_test(M_test(1)+1:end) == normal);
-n_abnormal_abnormal = idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
+n_normal_normal = kLast + idx_normal_test(y_test(1:M_test(1)) == normal);
+n_normal_abnormal = kLast + idx_normal_test(y_test(1:M_test(1)) == abnormal);
+n_abnormal_normal = kLast + idx_abnormal_test(y_test(M_test(1)+1:end) == normal);
+n_abnormal_abnormal = kLast + idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
 
-n_normal = kLast + [n_normal_normal n_normal_abnormal];
-n_abnormal = kLast + [n_abnormal_normal n_abnormal_abnormal];
+n_normal = [n_normal_normal n_normal_abnormal];
+n_abnormal = [n_abnormal_normal n_abnormal_abnormal];
 
 t_normal = TimeNormal{n_normal,1};
 t_abnormal = TimeAbnormal{n_abnormal,1};
@@ -320,6 +280,12 @@ figure
         xlabel('t[s]')
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
+%% Frames:
+
+% unique(frameIdxAbnormal{sort(n_normal_normal), 1})
+unique(frameIdxAbnormal{sort(n_normal_abnormal), 1})
+% unique(frameIdxAbnormal{sort(n_abnormal_normal), 1})
+unique(frameIdxAbnormal{sort(n_abnormal_abnormal), 1})
 %% Saving the model
 
 save GMM.mat GMM mu scalingFactor mu_pca U -mat
