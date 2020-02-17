@@ -5,16 +5,17 @@ function [T] = addDerivative(inputTable,  fieldBaseName, fieldSuffixes)
 %   by concatenating every string from fieldSuffixes to fieldBaseName.
 
     if nargin < 3
-        fieldSuffixes = "";
+        fieldSuffixes = {''};
     end
 
     T = inputTable;
-    fieldBaseNameDerivative = fieldBaseName + "Derivative";
+    fieldBaseNameDerivative = [fieldBaseName 'Derivative'];
     
-    for s = fieldSuffixes
-        T = [T, table(zeros(size(T, 1), 1), 'VariableNames', fieldBaseNameDerivative+s)];
+    for i = 1:length(fieldSuffixes)
+        s = fieldSuffixes{i};
+        T = [T, table(zeros(height(T), 1), 'VariableNames', {[fieldBaseNameDerivative s]})];
 
-        T{2:end, fieldBaseNameDerivative+s} = T{2:end, fieldBaseName+s} - T{1:end-1, fieldBaseName+s};
+        T{2:end, [fieldBaseNameDerivative s]} = T{2:end, [fieldBaseName s]} - T{1:end-1, [fieldBaseName s]};
     end
 end
 
