@@ -124,11 +124,9 @@ X_normal = tableNormal{:,:};
 X_abnormal = tableAbnormal{:,:};
 
 % add lookBack
-kLast = 3;
+kLast = 3;      % keep in mind that there are around 3 data samples per frame
 X_normal = lookBack(X_normal, kLast);
 X_abnormal = lookBack(X_abnormal, kLast);
-
-% X = [X_normal; X_abnormal];
 %% Train, CV, Test data split
 
 splitPcg = [70, 0];
@@ -148,7 +146,7 @@ mu = 0; %mean(X_train);
 % Sigma = cov(X_train);
 scalingFactor = 10^(-5);
 
-X_train_mapped = (X_train - mu)* scalingFactor;
+X_train_mapped = (X_train - mu) * scalingFactor;
 %% PCA
 
 [coeff,score,latent,tsquared,explained,mu_pca] = pca(X_train_mapped);
@@ -179,8 +177,8 @@ numClasses = 2;
 % max_eval = 0;
 min_AIC = inf;
 Iterations = 1000;
-% Lambdas = 0.001 : 0.0005 :0.02;
-Lambdas = 0.05 : 0.0005 : 0.1;
+Lambdas = 0.05 : 0.0005 : 0.1; % nice for kLast = 3;
+% Lambdas = 0.02 : 0.0005 : 0.06; % nice for kLast = 5,6;
 
 for Lambda = Lambdas
     disp(['Lambda = ' num2str(Lambda)]);
@@ -196,7 +194,7 @@ for Lambda = Lambdas
 
     % the percentage of predicted abnormals from normal set should be 0,
     % the percentage of predicted abnormals from abnormal set should be high,
-    if (n_an/M_normal > 0) || (n_aa/M_abnormal < 0.62)
+    if (n_an/M_normal > 0) || (n_aa/M_abnormal < 0.66)
         eval = inf;
     end
     disp(['Evaluation (smaller is better): ' num2str(eval)])
@@ -219,7 +217,6 @@ abnormal = abnormal_opt;
 labelName = labelName_opt;
 disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
 %% Evaluate on test set
-
 
 % feature maping and dim. reduction
 Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
