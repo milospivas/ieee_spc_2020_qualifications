@@ -89,22 +89,33 @@ workDirAbnormal = '04_abnormal';
 bagsNormal = files2bag(workDirNormal);
 bagsAbnormal = files2bag(workDirAbnormal);
 %%
-[frameIdxNormal, TimeNormal, tableNormal] = mapFrames(bagsNormal);
-[frameIdxAbnormal, TimeAbnormal, tableAbnormal] = mapFrames(bagsAbnormal);
+[frameIdxNormal, TimeNormal, TNormal] = mapFrames(bagsNormal);
+[frameIdxAbnormal, TimeAbnormal, TAbnormal] = mapFrames(bagsAbnormal);
+%%
+save temp.mat TNormal TAbnormal -mat
+%%
+load temp.mat
 %%
 % Adding derivatives of some values?
+tableNormalMagDer = addDerivative(TNormal, 'Mag', {'X', 'Y', 'Z'});
+tableAbnormalMagDer = addDerivative(TAbnormal, 'Mag', {'X', 'Y', 'Z'});
+
+tableNormal = removevars(tableNormalMagDer, {'MagX', 'MagY', 'MagZ'});
+tableAbnormal = removevars(tableAbnormalMagDer, {'MagX', 'MagY', 'MagZ'});
+
 %%
-save tables.mat tableNormal tableAbnormal frameIdxNormal framIdxAbnormal TimeNormal TimeAbnormal -mat
+save tables.mat tableNormal tableAbnormal frameIdxNormal frameIdxAbnormal TimeNormal TimeAbnormal -mat
 %% Modeling
 
-% load('tables.mat')
+clear; close all; clc;
+load('tables.mat')
 %% Feature generation
 
 X_normal = tableNormal{:,:};
 X_abnormal = tableAbnormal{:,:};
 
 % add lookBack
-kLast = 2;
+kLast = 3;
 X_normal = lookBack(X_normal, kLast);
 X_abnormal = lookBack(X_abnormal, kLast);
 
@@ -142,6 +153,8 @@ disp(['Number of principal components with ' int2str(varianceRetained) '% varian
 U = coeff(:,1:numComponents);
 
 Z = (X_train_mapped - mu_pca)* U;
+
+save Z.mat Z -mat
 %% Training data vizualization
 
 y = [zeros(M_normal,1); ones(M_abnormal,1)];
@@ -152,10 +165,11 @@ figure
     axis square
 %% Gaussian Mixture Model
 
+load Z.mat
 numClasses = 2;
 max_eval = 0;
 Iterations = 1000;
-for Lambda = [0.0 : 0.005 :0.2]
+for Lambda = 0.0001 : 0.005 :0.15
     disp(['Lambda = ' num2str(Lambda)]);
     [GMM, labelName, normal, abnormal, middle] = gmmFit(Z, numClasses, Lambda, Iterations);
     
@@ -174,7 +188,7 @@ for Lambda = [0.0 : 0.005 :0.2]
     s = silhouette(D_cv, y_cv);
     
     % silhouette evaluation
-    w_normal = 2.5;
+    w_normal = 40;
     thresh = 0; %-0.1;
     eval = silhouetteEval(s, y_cv, normal, w_normal, thresh);
     
@@ -183,9 +197,9 @@ for Lambda = [0.0 : 0.005 :0.2]
     if eval > max_eval
         max_eval = eval;
         GMM_opt = GMM;
-%         P_opt = P_cv;
-%         D_opt = D_cv;
-%         y_opt = y_cv;
+        P_opt = P_cv;
+        D_opt = D_cv;
+        y_opt = y_cv;
         Lambda_opt = Lambda;
         normal_opt = normal;
         abnormal_opt = abnormal;
@@ -195,16 +209,23 @@ for Lambda = [0.0 : 0.005 :0.2]
 end
 
 GMM = GMM_opt;
-% P_cv = P_opt;
-% D_cv = D_opt;
-% y_cv = y_opt;
+P_cv = P_opt;
+D_cv = D_opt;
+y_cv = y_opt;
 Lambda = Lambda_opt;
 normal = normal_opt;
 abnormal = abnormal_opt;
 labelName = labelName_opt;
+% Visualization on CV set
+
+% Silhouettes
+[s, h] = silhouetteVisualization(D_cv, y_cv, numClasses, normal, abnormal, labelName, Lambda);
+%%
+norm(GMM.mu(abnormal,:)) - norm(GMM.mu(normal,:))
+gmm2dVisualization(GMM, Z_cv, y_cv, labelName, Lambda);
+%% Evaluate on test set
 
 disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
-%% Evaluate on test set
 
 % feature maping and dim. reduction
 Z_test = ((X_test - mu)*scalingFactor - mu_pca) * U;
@@ -224,10 +245,11 @@ eval = silhouetteEval(s, y_test, normal, w_normal, thresh);
 disp(['Evaluation on test set (bigger is better): ' num2str(eval)])
 %% Visualize predicitons
 
-gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
-%%
 % Silhouettes
-[s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda);    
+[s, h] = silhouetteVisualization(D_test, y_test, numClasses, normal, abnormal, labelName, Lambda);
+%%
+gmm2dVisualization(GMM, Z, y, labelName, Lambda);
+% gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
 %% Some statistics
 
 disp(['For Lambda:' num2str(Lambda)]);
@@ -268,10 +290,12 @@ figure
     subplot(1,2,1)
         stem(t_normal, y_normal);
         title('Normal test data');
+        xlabel('t[s]')
     
     subplot(1,2,2)
         stem(t_abnormal, y_abnormal);
         title('Abnormal test data');
+        xlabel('t[s]')
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
 %% Saving the model
