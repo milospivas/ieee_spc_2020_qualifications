@@ -27,7 +27,7 @@ frameTime = timeseries(bagSelect);
 frameTime = frameTime.Time-startTime;
 k = 1;
 for i = 1:length(frameTime)
-    while T{k,2} <= frameTime(i)
+    while (k <= height(T) && T{k,2} <= frameTime(i))
         T{k,1} = i;
         k = k+1;
     end
@@ -59,7 +59,7 @@ for b = 2:length(bags)
     frameTime = frameTime.Time-startTime;
     k = t;
     for i = 1:length(frameTime)
-        while T{k,2} <= frameTime(i)
+        while (k <= height(T) && T{k,2} <= frameTime(i))
             T{k,1} = i+prev_frame;
             k = k+1;
         end
