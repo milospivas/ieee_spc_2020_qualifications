@@ -93,10 +93,11 @@ bagsAbnormal = files2bag(workDirAbnormal);
 [frameIdxAbnormal, TimeAbnormal, tableAbnormal] = mapFrames(bagsAbnormal);
 %%
 % Adding derivatives of some values?
+%%
+save tables.mat tableNormal tableAbnormal frameIdxNormal framIdxAbnormal TimeNormal TimeAbnormal -mat
 %% Modeling
 
-clear; close all; clc;
-load('tables.mat')
+% load('tables.mat')
 %% Feature generation
 
 X_normal = tableNormal{:,:};
@@ -257,8 +258,8 @@ n_abnormal_abnormal = idx_abnormal_test(y_test(M_test(1)+1:end) == abnormal);
 n_normal = kLast + [n_normal_normal n_normal_abnormal];
 n_abnormal = kLast + [n_abnormal_normal n_abnormal_abnormal];
 
-t_normal = TimeNormal(n_normal);
-t_abnormal = TimeAbnormal(n_abnormal);
+t_normal = TimeNormal{n_normal,1};
+t_abnormal = TimeAbnormal{n_abnormal,1};
 
 y_normal = [zeros(M_pred_conf(1,1), 1); ones(M_pred_conf(1,2), 1)];
 y_abnormal = [zeros(M_pred_conf(2,1), 1); ones(M_pred_conf(2,2), 1)];
