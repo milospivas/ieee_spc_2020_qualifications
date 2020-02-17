@@ -11,15 +11,15 @@ imuMag = timeseries(bagSelect,'MagneticField_.X','MagneticField_.Y','MagneticFie
 
 t1 = imuData.Time;
 t2 = imuMag.Time;
-l = min(length(t1),length(t2));
-t1 = t1(1:l);
-t2 = t2(1:l);
+L = min(length(t1),length(t2));
+t1 = t1(1:L);
+t2 = t2(1:L);
 time = mean([t1';t2']);
 time = time';
 
-T = table(zeros(l,1), time-startTime, imuData.Data(1:l,1), imuData.Data(1:l,2), imuData.Data(1:l,3), ...
-    imuData.Data(1:l,4), imuData.Data(1:l,5), imuData.Data(1:l,6), imuMag.Data(1:l,1), imuMag.Data(1:l,2), ...
-    imuMag.Data(1:l,3), 'VariableNames', ...
+T = table(zeros(L,1), time-startTime, imuData.Data(1:L,1), imuData.Data(1:L,2), imuData.Data(1:L,3), ...
+    imuData.Data(1:L,4), imuData.Data(1:L,5), imuData.Data(1:L,6), imuMag.Data(1:L,1), imuMag.Data(1:L,2), ...
+    imuMag.Data(1:L,3), 'VariableNames', ...
     {'FrameIdx','Time','AngVelX', 'AngVelY', 'AngVelZ', 'LinAccX', 'LinAccY', 'LinAccZ', 'MagX', 'MagY', 'MagZ'});
 
 bagSelect = select(bags{1},'Time',[bags{1}.StartTime bags{1}.EndTime],'Topic','/pylon_camera_node/image_raw');
@@ -43,16 +43,16 @@ for b = 2:length(bags)
     
     t1 = imuData.Time;
     t2 = imuMag.Time;
-    l = min(length(t1),length(t2));
-    t1 = t1(1:l);
-    t2 = t2(1:l);
+    L = min(length(t1),length(t2));
+    t1 = t1(1:L);
+    t2 = t2(1:L);
     time = mean([t1';t2']);
     time = time';
     
     t = size(T,1);
-    T{t+1:t+l,:} = [zeros(l,1), time-startTime, imuData.Data(1:l,1), imuData.Data(1:l,2), imuData.Data(1:l,3), ...
-        imuData.Data(1:l,4), imuData.Data(1:l,5), imuData.Data(1:l,6), imuMag.Data(1:l,1), imuMag.Data(1:l,2), ...
-        imuMag.Data(1:l,3)];
+    T{t+1:t+L,:} = [zeros(L,1), time-startTime, imuData.Data(1:L,1), imuData.Data(1:L,2), imuData.Data(1:L,3), ...
+        imuData.Data(1:L,4), imuData.Data(1:L,5), imuData.Data(1:L,6), imuMag.Data(1:L,1), imuMag.Data(1:L,2), ...
+        imuMag.Data(1:L,3)];
     
     bagSelect = select(bags{b},'Time',[bags{b}.StartTime bags{b}.EndTime],'Topic','/pylon_camera_node/image_raw');
     frameTime = timeseries(bagSelect);
