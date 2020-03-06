@@ -1,16 +1,11 @@
 function frames = collectFrames(bags)
 %COLLECTFRAMES Extracts and sorts frames
-%   Extracts frames from passed bag files and contcatenates them into one array
+%   Extracts frames from passed bag files and contcatenates them into one cell array
 
-frames = [];
+frames={};
 for b = 1:length(bags)
-    bagSelect = select(bags{b},'Topic','/pylon_camera_node/image_raw');
-    images = readMessages(bagSelect,'DataFormat','struct');
-    for i = 1:length(images)
-         image = vec2mat(images{i,1}.Data,images{i,1}.Width);
-         image = imrotate(image,180);
-         frames = [frames {image}];
-    end
+   bag_frames=extractImages(bags{b});
+   frames{length(frames)+1:length(frames)+length(bag_frames)}=bag_frames{1:end}; 
 end
 
 end
