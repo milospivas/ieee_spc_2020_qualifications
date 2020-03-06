@@ -111,7 +111,6 @@ tableAbnormalMagDer = addDerivative(TAbnormal, 'Mag', {'X', 'Y', 'Z'});
 
 tableNormal = removevars(tableNormalMagDer, {'MagX', 'MagY', 'MagZ'});
 tableAbnormal = removevars(tableAbnormalMagDer, {'MagX', 'MagY', 'MagZ'});
-
 %%
 save tables.mat tableNormal tableAbnormal frameIdxNormal frameIdxAbnormal TimeNormal TimeAbnormal -mat
 %% Modeling
@@ -142,8 +141,7 @@ M_normal = size(X_normal_train, 1);
 M_abnormal = size(X_abnormal_train, 1);
 %% Feature mapping (scaling and normalization)
 
-mu = 0; %mean(X_train);
-% Sigma = cov(X_train);
+mu = 0;
 scalingFactor = 10^(-5);
 
 X_train_mapped = (X_train - mu) * scalingFactor;
@@ -216,6 +214,9 @@ normal = normal_opt;
 abnormal = abnormal_opt;
 labelName = labelName_opt;
 disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
+%% Saving the model
+
+save GMM.mat GMM mu scalingFactor mu_pca U -mat
 %% Evaluate on test set
 
 % feature maping and dim. reduction
@@ -279,11 +280,9 @@ figure
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
 %% Frames:
 
-% unique(frameIdxAbnormal{sort(n_normal_normal), 1})
-unique(frameIdxAbnormal{sort(n_normal_abnormal), 1})
+% unique(frameIdxNormal{sort(n_normal_normal), 1})
+unique(frameIdxNormal{sort(n_normal_abnormal), 1})
 % unique(frameIdxAbnormal{sort(n_abnormal_normal), 1})
 unique(frameIdxAbnormal{sort(n_abnormal_abnormal), 1})
-%% Saving the model
-
-save GMM.mat GMM mu scalingFactor mu_pca U -mat
-%
+%%
+f_names = mostAbnormalFeatures(Z_test(y_test == abnormal), GMM, normal, U, kLast, tableNormal.Properties.VariableNames)
