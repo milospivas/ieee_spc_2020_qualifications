@@ -1,19 +1,18 @@
-function f_names = mostAbnormalFeatures(Z, GMM, normal, U, kLast, feature_names)
+function f_names = mostAbnormalFeatures(Z, GMM, normal, U, mu_pca, scalingFactor, mu, kLast, feature_names)
 %MOSTABNORMALFEATURES Finds most abnormal features from
 %   asdf
-    mu = GMM.mu(normal, :);
     Sigma = diag(GMM.Sigma(:, :, normal));
     
-    Z_norm = (Z - mu) ./ Sigma';
+    Z_norm = (Z - GMM.mu(normal, :)) ./ Sigma';
     [~, idx] = max(abs(Z_norm), [], 2);
     
     Z_mask = Z_norm;
     for i = 1 : length(idx)
         Z_mask(i, :) = 0;
-        Z_mask(i, idx(i)) = Sigma(idx(i));
+        Z_mask(i, idx(i)) = 3*Sigma(idx(i));
     end
     
-    X_mask = Z_mask * U';
+    X_mask = (Z_mask * U' + mu_pca)/scalingFactor + mu;
     X_mask = abs(X_mask);
     
     n_features = size(X_mask, 2)/(kLast+1);

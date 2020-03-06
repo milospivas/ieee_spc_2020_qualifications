@@ -285,4 +285,4 @@ unique(frameIdxNormal{sort(n_normal_abnormal), 1})
 % unique(frameIdxAbnormal{sort(n_abnormal_normal), 1})
 unique(frameIdxAbnormal{sort(n_abnormal_abnormal), 1})
 %%
-f_names = mostAbnormalFeatures(Z_test(y_test == abnormal), GMM, normal, U, kLast, tableNormal.Properties.VariableNames)
+f_names = mostAbnormalFeatures(Z_test(y_test == abnormal), GMM, normal, U, mu_pca, scalingFactor, mu, kLast, tableNormal.Properties.VariableNames)
