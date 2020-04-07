@@ -1,5 +1,5 @@
 %% IEEE Signal Processing Cup 2020 - Qualifications
-% % Team 2 : GMM
+% Team 2 : GMM
 %% Report
 % Defining the problem
 % 5 normal and 5 abnormal recordings are given as ROS .bag files.
@@ -49,8 +49,8 @@
 % All values are 3D, so the feature vector is 9D.
 % 
 % Feature engineering
-% We added a "lookBack" - adds k last samples to each sample, allowing the ML 
-% algorithm to "look back" in time.
+% We added "lookBack" features by adding k last samples to each sample, allowing 
+% the ML algorithm to "look back" in time.
 % 
 % Gaussian Mixture Model
 % Implemented GMM with 2 classes.
@@ -66,8 +66,7 @@
 % 0 predicted abnromals from normal set,
 % 
 % "high" percentage of abnormals from abnormal set.
-% 
-% % Overview of files:
+% Overview of files:
 
 %     addDerivative      - calculates derivatives of selected columns of the table and adds the derivative columns.
 %     extractImages      - Extracts images from a bag object
@@ -85,8 +84,8 @@
 %     GMM.mat            - saved trained model with parameters for data preprocessing
 
 %     main_GMM_en            - Main program.
-%% 
-% %% Implementation Work directories for normal and abnormal data.
+%% Implementation
+%% Work directories for normal and abnormal data.
 
 clear;
 
@@ -102,9 +101,9 @@ bagsAbnormal = files2bag(workDirAbnormal);
 [frameIdxNormal, TimeNormal, TNormal] = mapFrames(bagsNormal);
 [frameIdxAbnormal, TimeAbnormal, TAbnormal] = mapFrames(bagsAbnormal);
 %%
-save temp.mat TNormal TAbnormal -mat
+% save temp.mat TNormal TAbnormal -mat
 %%
-load temp.mat
+% load temp.mat
 % Adding derivatives of some values?
 tableNormalMagDer = addDerivative(TNormal, 'Mag', {'X', 'Y', 'Z'});
 tableAbnormalMagDer = addDerivative(TAbnormal, 'Mag', {'X', 'Y', 'Z'});
@@ -278,11 +277,12 @@ figure
         xlabel('t[s]')
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
-%% Frames:
+%% Frames
 
 % unique(frameIdxNormal{sort(n_normal_normal), 1})
 unique(frameIdxNormal{sort(n_normal_abnormal), 1})
 % unique(frameIdxAbnormal{sort(n_abnormal_normal), 1})
 unique(frameIdxAbnormal{sort(n_abnormal_abnormal), 1})
-%%
+% Detecting most abnormal features (experimental)
+
 f_names = mostAbnormalFeatures(Z_test(y_test == abnormal), GMM, normal, U, mu_pca, scalingFactor, mu, kLast, tableNormal.Properties.VariableNames)
