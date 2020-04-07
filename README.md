@@ -1,2 +1,4 @@
 # ieee_spc_2020_qualifications
-IEEE Signal Processing Cup Qualifications
+ML project for IEEE Signal Processing Cup Qualifications
+
+Start from the main .mlx or .m file
