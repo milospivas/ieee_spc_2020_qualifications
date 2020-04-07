@@ -4,6 +4,10 @@
 % Defining the problem
 % 5 normal and 5 abnormal recordings are given as ROS .bag files.
 % 
+% (files can be found here: <https://drive.google.com/drive/folders/1pBO4VxpCQf1Tta-efvQ6h2uh5gjwr9fF 
+% https://drive.google.com/drive/folders/1pBO4VxpCQf1Tta-efvQ6h2uh5gjwr9fF> (folders 
+% 03 and 04))
+% 
 % The task is to implement models which will give a prediction wheter each sample 
 % in the recording is normal/abnormal based on measurements from .bag files.
 % Visualization:
