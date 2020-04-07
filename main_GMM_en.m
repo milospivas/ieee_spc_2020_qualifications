@@ -97,14 +97,15 @@ workDirAbnormal = '04_abnormal';
 
 bagsNormal = files2bag(workDirNormal);
 bagsAbnormal = files2bag(workDirAbnormal);
-%%
+%% Extracting features
+
 [frameIdxNormal, TimeNormal, TNormal] = mapFrames(bagsNormal);
 [frameIdxAbnormal, TimeAbnormal, TAbnormal] = mapFrames(bagsAbnormal);
 %%
 % save temp.mat TNormal TAbnormal -mat
-%%
+%% Adding derivative features
+
 % load temp.mat
-% Adding derivatives of some values?
 tableNormalMagDer = addDerivative(TNormal, 'Mag', {'X', 'Y', 'Z'});
 tableAbnormalMagDer = addDerivative(TAbnormal, 'Mag', {'X', 'Y', 'Z'});
 
@@ -112,19 +113,19 @@ tableNormal = removevars(tableNormalMagDer, {'MagX', 'MagY', 'MagZ'});
 tableAbnormal = removevars(tableAbnormalMagDer, {'MagX', 'MagY', 'MagZ'});
 %%
 save tables.mat tableNormal tableAbnormal frameIdxNormal frameIdxAbnormal TimeNormal TimeAbnormal -mat
-%% Modeling
+% loading saved data
 
 clear; close all; clc;
 load('tables.mat')
-%% Feature generation
+%% Adding "lookBack" features - appending k previous samples to each sample
 
 X_normal = tableNormal{:,:};
 X_abnormal = tableAbnormal{:,:};
 
-% add lookBack
 kLast = 3;      % keep in mind that there are around 3 data samples per frame
 X_normal = lookBack(X_normal, kLast);
 X_abnormal = lookBack(X_abnormal, kLast);
+%% Modeling
 %% Train, CV, Test data split
 
 splitPcg = [70, 0];
@@ -226,7 +227,6 @@ P_test = posterior(GMM, Z_test);
 [~, y_test] = max(P_test, [], 2);
 %% Visualize predicitons
 
-% gmm2dVisualization(GMM, Z, y, labelName, Lambda);
 gmm2dVisualization(GMM, Z_test, y_test, labelName, Lambda);
 disp(['Optimal Lambda is:' num2str(Lambda_opt)]);
 %% Some statistics
