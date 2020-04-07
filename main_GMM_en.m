@@ -277,11 +277,16 @@ figure
         xlabel('t[s]')
     
     sgtitle('Abnormalities in time. 0 - normal, 1 - abnormality detected.');
-%% Frames
+%% Displaying detected frames
 
 % unique(frameIdxNormal{sort(n_normal_normal), 1})
+
+disp("Detected abnormal frames from abnormal dataset (there shouldn't be any):")
 unique(frameIdxNormal{sort(n_normal_abnormal), 1})
+
 % unique(frameIdxAbnormal{sort(n_abnormal_normal), 1})
+
+disp("Detected abnormal frames from abnormal dataset (there should be a lot):")
 unique(frameIdxAbnormal{sort(n_abnormal_abnormal), 1})
 % Detecting most abnormal features (experimental)
 
