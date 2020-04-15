@@ -1,2 +1,6 @@
 # ieee_spc_2020_qualifications
-IEEE Signal Processing Cup Qualifications
+ML project for IEEE Signal Processing Cup Qualifications
+
+Applies Gaussian Mixture Models for anomaly detection.
+
+Start from the main .mlx or .m file.
