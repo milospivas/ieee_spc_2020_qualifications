@@ -10,7 +10,7 @@ function gmm2dVisualization(GMM, Z, y, labelName, Lambda)
     
     figure
         for i = 1 : numClasses
-            subplot(1,numClasses, i);
+            subplot(2,numClasses, i);
             gscatter(Z(:,1), Z(:,2), y); %, 'br', 'o+');
             g = gca;
             hold on
@@ -20,24 +20,25 @@ function gmm2dVisualization(GMM, Z, y, labelName, Lambda)
             ylim(GMM.mu(i,2) + 3*sqrt(GMM.Sigma(2,2, i))*[-1 1])
             
             title(['Fitted Gaussian ' labelName{i}])
-            legend(labelName)
+            legend(labelName, 'Location', 'southeast')
+            axis square
             hold off
         end
-        sgtitle(['Lambda = ' num2str(Lambda)]);
+%         sgtitle(['Lambda = ' num2str(Lambda)]);
     
-    figure
+%     figure
         for i = 1 : numClasses
-            subplot(1,numClasses, i);
+            subplot(2,numClasses, numClasses+i);
             gscatter(Z(:,1), Z(:,2), y); %, 'br', 'o+');
             g = gca;
             hold on
             fsurf(pdfs{i},[g.XLim g.YLim])
             title(['Fitted Gaussian ' labelName{i}])
-            legend(labelName)
+            legend off %(labelName, 'Location', 'northeast')
             view(45, 15);
             axis fill
             hold off
         end      
-        sgtitle(['Lambda = ' num2str(Lambda)]);
+%         sgtitle(['Lambda = ' num2str(Lambda)]);
 end
 
